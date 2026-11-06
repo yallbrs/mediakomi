@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>МедиаКоми — угадай цену квартиры</title>
+<meta name="description" content="Игра: угадайте стоимость квартиры в Республике Коми по фотографиям и получите звание знатока цен.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23012D6E'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>М</text></svg>">
+<style>
+  :root{
+    --blue:#012D6E;
+    --blue-dark:#001A42;
+    --blue-light:#E8EEF7;
+    --accent:#D6203F;
+    --green:#1E9E5A;
+    --text:#16233B;
+    --muted:#66748C;
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:linear-gradient(180deg,var(--blue) 0%,var(--blue-dark) 100%);
+    color:var(--text);
+    min-height:100dvh;
+    display:flex;
+    justify-content:center;
+  }
+  .app{
+    width:100%;
+    max-width:480px;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  }
+  .screen{display:none;flex-direction:column;flex:1;animation:fade .3s ease}
+  .screen.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ---------- Общие ---------- */
+  .btn{
+    display:block;width:100%;border:none;cursor:pointer;
+    background:var(--accent);color:#fff;
+    font-size:17px;font-weight:700;padding:16px 20px;border-radius:14px;
+    transition:transform .12s ease,box-shadow .12s ease;
+    box-shadow:0 6px 18px rgba(214,32,63,.35);
+  }
+  .btn:active{transform:scale(.97)}
+  .btn.blue{background:#fff;color:var(--blue);box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  .btn.ghost{background:transparent;color:var(--blue);box-shadow:none;border:2px solid var(--blue-light)}
+  .card{
+    background:#fff;border-radius:var(--radius);
+    padding:20px;box-shadow:0 10px 30px rgba(0,10,40,.25);
+  }
+  a{color:var(--blue)}
+
+  /* ---------- Стартовый экран ---------- */
+  #screen-start{justify-content:center;align-items:center;text-align:center;gap:18px;padding:24px 0}
+  .logo-badge{
+    width:84px;height:84px;border-radius:22px;background:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:44px;font-weight:800;color:var(--blue);
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  .brand{
+    color:#fff;font-size:34px;font-weight:800;letter-spacing:.5px;
+  }
+  .brand span{color:#FFC44D}
+  .tagline{color:rgba(255,255,255,.85);font-size:15px;line-height:1.45}
+  .rules{width:100%;text-align:left;color:var(--text);font-size:14.5px;line-height:1.5}
+  .rules h2{font-size:17px;margin-bottom:10px;color:var(--blue)}
+  .rules ol{padding-left:20px;display:flex;flex-direction:column;gap:8px}
+  .rules b{color:var(--blue)}
+  .score-hint{
+    margin-top:12px;background:var(--blue-light);border-radius:12px;padding:10px 14px;
+    font-size:13px;color:var(--blue);line-height:1.5;
+  }
+
+  /* ---------- Игровой экран ---------- */
+  #screen-game{gap:12px;padding-top:12px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;color:#fff;font-size:13.5px;font-weight:600}
+  .topbar .brand-mini{font-weight:800;font-size:16px}
+  .round-label{opacity:.9}
+  .progress-track{
+    height:8px;border-radius:99px;background:rgba(255,255,255,.25);overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;width:0;border-radius:99px;background:#FFC44D;
+    transition:width .35s ease;
+  }
+
+  .photo-card{padding:12px 12px 14px}
+  .gallery{
+    display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+    border-radius:12px;scrollbar-width:none;
+  }
+  .gallery::-webkit-scrollbar{display:none}
+  .gallery img{
+    width:100%;flex:0 0 100%;aspect-ratio:4/3;object-fit:cover;
+    scroll-snap-align:center;border-radius:12px;background:var(--blue-light);
+  }
+  .dots{display:flex;gap:6px;justify-content:center;margin-top:10px}
+  .dots i{width:7px;height:7px;border-radius:50%;background:#C7D2E4;transition:.2s}
+  .dots i.on{background:var(--blue);width:20px;border-radius:99px}
+  .apt-title{font-size:17px;font-weight:700;margin-top:10px;color:var(--text)}
+  .apt-street{font-size:13.5px;color:var(--muted);margin-top:3px}
+
+  .answer-card{display:flex;flex-direction:column;gap:14px}
+  .guess-head{display:flex;justify-content:space-between;align-items:baseline}
+  .guess-head label{font-size:14px;font-weight:600;color:var(--muted)}
+  .guess-value{font-size:24px;font-weight:800;color:var(--blue);white-space:nowrap}
+  input[type=range]{
+    width:100%;appearance:none;-webkit-appearance:none;height:34px;background:transparent;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:8px;border-radius:99px;
+    background:linear-gradient(90deg,var(--blue) var(--fill,50%),var(--blue-light) var(--fill,50%));
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:28px;height:28px;border-radius:50%;
+    background:#fff;border:4px solid var(--blue);margin-top:-10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:grab;
+  }
+  input[type=range]::-moz-range-track{height:8px;border-radius:99px;background:var(--blue-light)}
+  input[type=range]::-moz-range-progress{height:8px;border-radius:99px;background:var(--blue)}
+  input[type=range]::-moz-range-thumb{
+    width:22px;height:22px;border-radius:50%;background:#fff;border:4px solid var(--blue);
+  }
+  .range-bounds{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+
+  /* ---------- Результат раунда ---------- */
+  .verdict{display:none;flex-direction:column;gap:10px}
+  .verdict.show{display:flex;animation:fade .3s ease}
+  .price-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;background:var(--blue-light)}
+  .price-row .lbl{font-size:13px;color:var(--muted)}
+  .price-row .val{font-size:18px;font-weight:800;color:var(--blue)}
+  .price-row.guess{background:#FFF3D6}
+  .price-row.guess .val{color:#8A6100}
+  .diff-line{font-size:14.5px;font-weight:700;text-align:center}
+  .diff-line.over{color:var(--accent)}
+  .diff-line.under{color:var(--blue)}
+  .diff-line.exact{color:var(--green)}
+  .points-pill{
+    align-self:center;background:var(--green);color:#fff;font-weight:800;
+    font-size:15px;padding:8px 18px;border-radius:99px;
+  }
+  .listing-link{
+    display:block;text-align:center;font-size:14px;font-weight:600;color:var(--blue);
+    background:var(--blue-light);border-radius:12px;padding:12px;text-decoration:none;
+  }
+
+  /* ---------- Итоговый экран ---------- */
+  #screen-result{justify-content:center;gap:16px;padding:24px 0}
+  .result-hero{background:#fff;border-radius:var(--radius);padding:24px;text-align:center;box-shadow:0 10px 30px rgba(0,10,40,.25)}
+  .result-hero .emoji{font-size:52px}
+  .result-hero h2{font-size:22px;margin:10px 0 6px;color:var(--blue)}
+  .result-hero p{font-size:14.5px;color:var(--muted);line-height:1.5}
+  .total-score{font-size:44px;font-weight:800;color:var(--blue);margin-top:8px}
+  .total-score small{font-size:16px;color:var(--muted);font-weight:600}
+  .score-bar-track{height:10px;border-radius:99px;background:var(--blue-light);overflow:hidden;margin-top:14px}
+  .score-bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),#2E6FD8);border-radius:99px;transition:width .8s ease}
+  .rounds-list{background:#fff;border-radius:var(--radius);padding:16px 18px;box-shadow:0 10px 30px rgba(0,10,40,.25)}
+  .rounds-list h3{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:10px}
+  .round-item{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:7px 0;border-bottom:1px solid #EEF2F8;color:var(--text)}
+  .round-item:last-child{border-bottom:none}
+  .round-item .pts{font-weight:800;color:var(--blue);white-space:nowrap}
+  .round-item .d{color:var(--muted)}
+  .footer-note{text-align:center;color:rgba(255,255,255,.55);font-size:11.5px;padding-bottom:8px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= СТАРТОВЫЙ ЭКРАН ================= -->
+  <section class="screen active" id="screen-start">
+    <div class="logo-badge">М</div>
+    <h1 class="brand">Медиа<span>Коми</span></h1>
+    <p class="tagline">Угадай, сколько стоит квартира<br>в Республике Коми 🏠</p>
+    <div class="card rules">
+      <h2>Как играть</h2>
+      <ol>
+        <li>Вы видите фотографии реальной квартиры из активных объявлений.</li>
+        <li>Двигайте <b>бегунок</b> и укажите цену, которая, по вашему мнению, стоит эта квартира.</li>
+        <li>Нажмите <b>«Оценить»</b> — узнаете реальную цену и свою ошибку.</li>
+        <li>В одном раунде <b>10 квартир</b>. В конце — ваш вердикт!</li>
+      </ol>
+      <div class="score-hint">
+        💰 Баллы за точность: чем ближе ваша цена к реальной, тем больше баллов (максимум 10 за квартиру, 100 за игру). А в конце узнаете, кто вы — жадный студент, адекватный квартирант или транжира.
+      </div>
+    </div>
+    <button class="btn" id="btn-start">Запустить игру</button>
+    <p class="footer-note">Данные: активные объявления Avito · Инта, Республика Коми</p>
+  </section>
+
+  <!-- ================= ИГРОВОЙ ЭКРАН ================= -->
+  <section class="screen" id="screen-game">
+    <div class="topbar">
+      <span class="brand-mini">МедиаКоми</span>
+      <span class="round-label" id="round-label">Квартира 1 из 10</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+
+    <div class="card photo-card">
+      <div class="gallery" id="gallery"></div>
+      <div class="dots" id="dots"></div>
+      <div class="apt-title" id="apt-desc"></div>
+      <div class="apt-street" id="apt-street"></div>
+    </div>
+
+    <div class="card answer-card">
+      <div id="answer-area">
+        <div class="guess-head">
+          <label for="slider">Ваша оценка цены</label>
+          <span class="guess-value" id="guess-value">500 000 ₽</span>
+        </div>
+        <input type="range" id="slider" min="50000" max="2000000" step="5000" value="500000" aria-label="Оценка цены">
+        <div class="range-bounds"><span>50 тыс. ₽</span><span>2 млн ₽</span></div>
+      </div>
+
+      <div class="verdict" id="verdict">
+        <div class="price-row"><span class="lbl">Реальная цена</span><span class="val" id="real-price"></span></div>
+        <div class="price-row guess"><span class="lbl">Ваша оценка</span><span class="val" id="guess-price"></span></div>
+        <div class="diff-line" id="diff-line"></div>
+        <div class="points-pill" id="points-pill"></div>
+        <a class="listing-link" id="listing-link" target="_blank" rel="noopener">Открыть объявление на Avito ↗</a>
+      </div>
+
+      <button class="btn" id="btn-rate">Оценить</button>
+    </div>
+  </section>
+
+  <!-- ================= ИТОГОВЫЙ ЭКРАН ================= -->
+  <section class="screen" id="screen-result">
+    <div class="result-hero">
+      <div class="emoji" id="result-emoji">🏆</div>
+      <h2 id="result-title">Адекватный квартирант</h2>
+      <p id="result-desc"></p>
+      <div class="total-score"><span id="total-score">0</span><small> / 100 баллов</small></div>
+      <div class="score-bar-track"><div class="score-bar-fill" id="score-bar-fill"></div></div>
+    </div>
+    <div class="rounds-list">
+      <h3>Ваши ответы по квартирам</h3>
+      <div id="rounds-list"></div>
+    </div>
+    <button class="btn blue" id="btn-restart">Играть снова</button>
+    <p class="footer-note">МедиаКоми · цены из активных объявлений Avito по Республике Коми</p>
+  </section>
+
+</div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var ROUNDS = 10;
+  var SLIDER_MIN = 50000, SLIDER_MAX = 2000000;
+
+  var state = { deck:[], round:0, score:0, answers:[] };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var fmt = function(n){ return n.toLocaleString("ru-RU") + " ₽"; };
+
+  /* ---------- Балльная система: чем ближе к реальной цене, тем больше баллов ---------- */
+  function scoreFor(real, guess){
+    var err = Math.abs(guess - real) / real; // относительная ошибка
+    if (err <= 0.05) return { pts:10, label:"Отлично! Почти в точку" };
+    if (err <= 0.10) return { pts:8,  label:"Очень близко" };
+    if (err <= 0.20) return { pts:6,  label:"Неплохо" };
+    if (err <= 0.35) return { pts:4,  label:"Есть над чем подумать" };
+    if (err <= 0.50) return { pts:2,  label:"Далековато" };
+    return              { pts:0,  label:"Мимо кассы" };
+  }
+
+  /* ---------- Архетип по среднему смещению оценок ---------- */
+  function archetype(answers){
+    if (!answers.length) return null;
+    var bias = answers.reduce(function(s,a){ return s + (a.guess - a.real) / a.real; }, 0) / answers.length;
+    var pct = Math.round(bias * 100);
+    if (bias <= -0.15) return {
+      emoji:"🧐", title:"Жадный студент", pct:pct,
+      desc:"Ваши оценки почти стабильно ниже реальных цен. Вы торгуетесь даже там, где ещё не начали говорить — завидная способность находить скидку там, где её нет."
+    };
+    if (bias >= 0.15) return {
+      emoji:"💸", title:"Транжира", pct:pct,
+      desc:"Ваши оценки почти стабильно выше реальных цен. Продавцам Коми с вами легко — вы бы купили квартиру в Инте по цене московской однушки."
+    };
+    return {
+      emoji:"🎯", title:"Адекватный квартирант", pct:pct,
+      desc:"Ваши оценки в среднем совпадают с реальными ценами рынка. Вам можно доверить выбор квартиры — и даже торг." +
+        (pct > 0 ? " (в среднем вы завышали на " + pct + "%)" : pct < 0 ? " (в среднем вы занижали на " + Math.abs(pct) + "%)" : "")
+    };
+  }
+
+  /* ---------- Навигация по экранам ---------- */
+  function showScreen(id){
+    document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+    $(id).classList.add("active");
+    window.scrollTo(0,0);
+  }
+
+  /* ---------- Начало игры ---------- */
+  function startGame(){
+    var pool = window.LISTINGS.slice();
+    for (var i = pool.length - 1; i > 0; i--){ // Фишер—Йетс
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    state.deck = pool.slice(0, ROUNDS);
+    state.round = 0;
+    state.score = 0;
+    state.answers = [];
+    showRound();
+    showScreen("screen-game");
+  }
+
+  /* ---------- Показ текущего лота ---------- */
+  function showRound(){
+    var lot = state.deck[state.round];
+
+    $("round-label").textContent = "Квартира " + (state.round + 1) + " из " + ROUNDS;
+    $("progress-fill").style.width = (state.round / ROUNDS * 100) + "%";
+
+    var gallery = $("gallery");
+    gallery.innerHTML = "";
+    gallery.scrollLeft = 0;
+    lot.photos.forEach(function(src, i){
+      var img = document.createElement("img");
+      img.src = src;
+      img.alt = "Фото квартиры " + (i + 1);
+      img.loading = i === 0 ? "eager" : "lazy";
+      img.draggable = false;
+      gallery.appendChild(img);
+    });
+
+    var dots = $("dots");
+    dots.innerHTML = "";
+    lot.photos.forEach(function(_, i){
+      var d = document.createElement("i");
+      if (i === 0) d.className = "on";
+      dots.appendChild(d);
+    });
+
+    $("apt-desc").textContent = lot.desc;
+    $("apt-street").textContent = "📍 " + lot.street;
+
+    var slider = $("slider");
+    slider.value = 500000;
+    updateSliderUI();
+    $("guess-value").textContent = fmt(500000);
+
+    $("verdict").classList.remove("show");
+    $("answer-area").style.display = "";
+    var btn = $("btn-rate");
+    btn.textContent = "Оценить";
+    btn.onclick = rate;
+    btn.style.display = "";
+  }
+
+  /* ---------- Галерея: точки-индикаторы ---------- */
+  $("gallery").addEventListener("scroll", function(){
+    var g = $("gallery");
+    var idx = Math.round(g.scrollLeft / Math.max(1, g.clientWidth));
+    var dots = $("dots").children;
+    for (var i = 0; i < dots.length; i++) dots[i].className = i === idx ? "on" : "";
+  }, { passive:true });
+
+  /* ---------- Бегунок ---------- */
+  var slider = $("slider");
+  function updateSliderUI(){
+    var pct = (slider.value - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN) * 100;
+    slider.style.setProperty("--fill", pct + "%");
+    $("guess-value").textContent = fmt(Number(slider.value));
+  }
+  slider.addEventListener("input", updateSliderUI);
+
+  /* ---------- Оценка ---------- */
+  function rate(){
+    var lot = state.deck[state.round];
+    var guess = Number(slider.value);
+    var res = scoreFor(lot.price, guess);
+    state.score += res.pts;
+
+    var diff = guess - lot.price;
+    state.answers.push({ desc:lot.desc, guess:guess, real:lot.price, pts:res.pts, diff:diff });
+
+    // прогресс-бар: раунд считаем пройденным после оценки
+    $("progress-fill").style.width = ((state.round + 1) / ROUNDS * 100) + "%";
+
+    $("answer-area").style.display = "none";
+    $("real-price").textContent = fmt(lot.price);
+    $("guess-price").textContent = fmt(guess);
+
+    var dl = $("diff-line");
+    if (diff === 0){
+      dl.textContent = "🎯 Идеально! Цены совпали";
+      dl.className = "diff-line exact";
+    } else if (diff > 0){
+      dl.textContent = "Вы переоценили на " + fmt(diff) + " (+" + Math.round(diff / lot.price * 100) + "%)";
+      dl.className = "diff-line over";
+    } else {
+      dl.textContent = "Вы недооценили на " + fmt(-diff) + " (−" + Math.round(-diff / lot.price * 100) + "%)";
+      dl.className = "diff-line under";
+    }
+
+    $("points-pill").textContent = "+" + res.pts + " " + plural(res.pts, "балл", "балла", "баллов") + " · " + res.label;
+    $("listing-link").href = lot.url;
+
+    var v = $("verdict");
+    v.classList.remove("show");
+    void v.offsetWidth; // перезапуск анимации
+    v.classList.add("show");
+
+    var btn = $("btn-rate");
+    btn.textContent = state.round === ROUNDS - 1 ? "К результатам 🏁" : "Следующая квартира →";
+    btn.onclick = next;
+  }
+
+  function plural(n, one, few, many){
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+    return many;
+  }
+
+  function next(){
+    if (state.round === ROUNDS - 1){ finish(); return; }
+    state.round++;
+    showRound();
+  }
+
+  /* ---------- Итоги ---------- */
+  function finish(){
+    var arch = archetype(state.answers) || { emoji:"🏠", title:"", desc:"" };
+    $("result-emoji").textContent = arch.emoji;
+    $("result-title").textContent = arch.title;
+    $("result-desc").textContent = arch.desc;
+    $("total-score").textContent = state.score;
+    $("rounds-list").innerHTML = state.answers.map(function(a, i){
+      var sign = a.diff > 0 ? "+" : a.diff < 0 ? "−" : "";
+      var d = a.diff === 0 ? "в точку" : sign + fmt(Math.abs(a.diff)).replace(" ₽","");
+      return "<div class='round-item'><span>" + (i + 1) + ". " + a.desc +
+             "</span><span class='d'>" + d + "</span><span class='pts'>+" + a.pts + "</span></div>";
+    }).join("");
+    showScreen("screen-result");
+    setTimeout(function(){
+      $("score-bar-fill").style.width = state.score + "%";
+    }, 100);
+  }
+
+  /* ---------- Кнопки ---------- */
+  $("btn-start").onclick = startGame;
+  $("btn-restart").onclick = startGame;
+})();
+</script>
+</body>
+</html>
